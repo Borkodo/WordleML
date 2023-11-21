@@ -105,30 +105,23 @@ class DQNWordleBot:
         self.guessed_words = []
 
     def _build_model(self):
-        # Neural Network for Deep-Q learning Model
         model = Sequential()
 
-        # Input layer
         model.add(Dense(256, input_dim=166, activation='relu'))  # Increased neurons
         model.add(Dropout(0.5))  # Adjusted dropout rate
 
-        # First Hidden layer
         model.add(Dense(128, activation='relu'))
         model.add(Dropout(0.5))
 
-        # Second Hidden layer
         model.add(Dense(128, activation='relu'))  # Increased neurons
         model.add(Dropout(0.5))
 
-        # Third Hidden layer
         model.add(Dense(64, activation='relu'))
         model.add(Dropout(0.5))
 
-        # Fourth Hidden layer
         model.add(Dense(32, activation='relu'))
         model.add(Dropout(0.5))
 
-        # Output layer
         model.add(Dense(len(self.simulator.valid_guesses), activation='linear'))
 
         model.compile(loss='mse', optimizer='adam')
@@ -136,28 +129,22 @@ class DQNWordleBot:
         return model
 
     def update_target_model(self):
-        # copy weights from model to target_model
         self.target_model.set_weights(self.model.get_weights())
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
     def state_representation(self, feedback, word_info):
-        # Create an array for letters
         letter_arr = np.array(list(map(chr, range(97, 123))))
 
-        # Letter counts using NumPy
         letter_counts = np.array([word_info.letter_amounts.get(l, 0) for l in letter_arr])
 
-        # Letter positions
         letter_positions = np.array([1 if l is not None else 0 for l in word_info.green_letters])
 
-        # Excluded letter representation using NumPy
         excluded_representation = np.array(
             [[1 if l in word_info.excluded_letters[pos] else 0 for l in letter_arr] for pos in range(5)]
         ).flatten()
 
-        # Combine and reshape using NumPy
         combined_array = np.concatenate([letter_counts, feedback, letter_positions, excluded_representation])
 
         return combined_array.reshape(1, combined_array.size)
@@ -179,7 +166,6 @@ class DQNWordleBot:
         batch_size = min(len(self.memory), num_simulations)
         minibatch = random.sample(self.memory, batch_size)
 
-        # Batch the states and next_states
         states = np.array([item[0] for item in minibatch])
         next_states = np.array([item[3] for item in minibatch])
 
@@ -188,12 +174,10 @@ class DQNWordleBot:
         if next_states.ndim == 3:
             next_states = next_states.squeeze(axis=1)
 
-        # Predict Q-values in batch using predict_on_batch
         targets = self.model.predict_on_batch(states)
         next_state_values = self.target_model.predict_on_batch(next_states)
         next_state_values_online = self.model.predict_on_batch(next_states)
 
-        # Use in-place operation for target value updates
         for i, (state, action, reward, _, done) in enumerate(minibatch):
             action_index = self.simulator.valid_guesses.index(action)
             if done:
@@ -202,10 +186,8 @@ class DQNWordleBot:
                 best_action = np.argmax(next_state_values_online[i])
                 targets[i][action_index] = reward + self.gamma * next_state_values[i][best_action]
 
-        # Train model in batch
         self.model.train_on_batch(states, targets)
 
-        # Delete unused variables
         del minibatch, states, next_states, targets, next_state_values, next_state_values_online
         gc.collect()
 
@@ -284,15 +266,14 @@ class DQNWordleBot:
                     if a:
                         action = a
             self.guessed_words.append(action)
-            # Print the chosen action
+           
             print(f"Round {t + 1}: Chosen action (word): {action}")
 
             feedback = self.simulator.play_round(action)
 
-            # Print the feedback received
             print(f"Round {t + 1}: Received feedback: {feedback}")
 
-            initial_solutions_count = len(self.valid_solutions)  # Count before filtering
+            initial_solutions_count = len(self.valid_solutions)  
 
             remaining_solutions = interpret_feedback(feedback, action, word_info, self.valid_solutions)
 
@@ -317,7 +298,6 @@ class DQNWordleBot:
 
             self.valid_solutions = remaining_solutions
 
-            # Print the remaining solutions
             print(f"Round {t + 1}: Remaining solutions {len(remaining_solutions)}")
 
             self.remember(state, action, reward, next_state, done)
@@ -331,18 +311,15 @@ class DQNWordleBot:
                 self.replay(batch_size)
                 self.update_target_model()
 
-                # Print the updated epsilon value
                 print(f"Updated epsilon value: {self.epsilon}")
 
             if done:
                 print("Bot won!")
                 break
 
-        # Print the end of game information
         print(f"Game ended. Finished with {len(self.valid_solutions)} possible solutions left")
         print("-------------------------------------------------------------")  # A separator line for clarity
 
-    # ... (the remaining methods remain unchanged)
     def make_best_guess(self, state):
         act_values = self.model.predict(state)
         return self.simulator.valid_guesses[np.argmax(act_values[0])]
@@ -371,7 +348,6 @@ class DQNWordleBot:
         self.model.load_weights(file_name)
 
     def top_3_recommendations(self, state):
-        """Return the top 3 recommended actions based on the model's prediction."""
         act_values = self.model.predict(state)[0]
 
         for i, word in enumerate(self.simulator.valid_guesses):
@@ -429,7 +405,6 @@ bot = DQNWordleBot(simulator)
 
 bot.load_model('bot_weights_game_19400.h5')
 
-# Train the bot
 # bot.play_games()
 
 # bot.load_model('bot_weights_game_9700.h5')
